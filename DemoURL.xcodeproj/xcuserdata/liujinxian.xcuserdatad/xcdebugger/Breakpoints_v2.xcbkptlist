@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   uuid = "B10F5D1D-24FE-4F14-9D16-6CB5D4BFBA43"
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "F1BCEDC0-A1BE-4F9C-B056-795FEE648A59"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "DemoURL/API /ApiManager.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "68"
+            endingLineNumber = "68"
+            landmarkName = "getStructJson(object:forResource:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "F1BCEDC0-A1BE-4F9C-B056-795FEE648A59 - e5458666ca7757f7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "DemoURL.ApiManager.getStructJson&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable&gt;(object: &#x3c4;_0_0.Type, forResource: Swift.String) -&gt; RxSwift.PrimitiveSequence&lt;RxSwift.SingleTrait, Swift.Optional&lt;&#x3c4;_0_0&gt;&gt;"
+                  moduleName = "DemoURL"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/liujinxian/DemoURL/DemoURL/API%20/ApiManager.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "68"
+                  endingLineNumber = "68"
+                  offsetFromSymbolStart = "1114">
+               </Location>
+               <Location
+                  uuid = "F1BCEDC0-A1BE-4F9C-B056-795FEE648A59 - e5458666ca7757f7"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "DemoURL.ApiManager.getStructJson&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable&gt;(object: &#x3c4;_0_0.Type, forResource: Swift.String) -&gt; RxSwift.PrimitiveSequence&lt;RxSwift.SingleTrait, Swift.Optional&lt;&#x3c4;_0_0&gt;&gt;"
+                  moduleName = "DemoURL"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/liujinxian/DemoURL/DemoURL/API%20/ApiManager.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "68"
+                  endingLineNumber = "68"
+                  offsetFromSymbolStart = "1046">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "442D5FB1-8D7D-44DE-82D4-5C77CB7987A8"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "DemoURL/API /ApiManager.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "69"
+            endingLineNumber = "69"
+            landmarkName = "getStructJson(object:forResource:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "442D5FB1-8D7D-44DE-82D4-5C77CB7987A8 - e5458666ca7757d6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "DemoURL.ApiManager.getStructJson&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable&gt;(object: &#x3c4;_0_0.Type, forResource: Swift.String) -&gt; RxSwift.PrimitiveSequence&lt;RxSwift.SingleTrait, Swift.Optional&lt;&#x3c4;_0_0&gt;&gt;"
+                  moduleName = "DemoURL"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/liujinxian/DemoURL/DemoURL/API%20/ApiManager.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "69"
+                  endingLineNumber = "69"
+                  offsetFromSymbolStart = "1153">
+               </Location>
+               <Location
+                  uuid = "442D5FB1-8D7D-44DE-82D4-5C77CB7987A8 - e5458666ca7757d6"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "DemoURL.ApiManager.getStructJson&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable&gt;(object: &#x3c4;_0_0.Type, forResource: Swift.String) -&gt; RxSwift.PrimitiveSequence&lt;RxSwift.SingleTrait, Swift.Optional&lt;&#x3c4;_0_0&gt;&gt;"
+                  moduleName = "DemoURL"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/liujinxian/DemoURL/DemoURL/API%20/ApiManager.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "69"
+                  endingLineNumber = "69"
+                  offsetFromSymbolStart = "1114">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "0A450C99-292E-4EAC-8F54-EF771E33C9FF"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "DemoURL/API /ApiManager.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "71"
+            endingLineNumber = "71"
+            landmarkName = "getStructJson(object:forResource:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "0A450C99-292E-4EAC-8F54-EF771E33C9FF - e5458666ca775794"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "DemoURL.ApiManager.getStructJson&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable&gt;(object: &#x3c4;_0_0.Type, forResource: Swift.String) -&gt; RxSwift.PrimitiveSequence&lt;RxSwift.SingleTrait, Swift.Optional&lt;&#x3c4;_0_0&gt;&gt;"
+                  moduleName = "DemoURL"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/liujinxian/DemoURL/DemoURL/API%20/ApiManager.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "71"
+                  endingLineNumber = "71"
+                  offsetFromSymbolStart = "1599">
+               </Location>
+               <Location
+                  uuid = "0A450C99-292E-4EAC-8F54-EF771E33C9FF - e5458666ca775794"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "DemoURL.ApiManager.getStructJson&lt;&#x3c4;_0_0 where &#x3c4;_0_0: Swift.Decodable&gt;(object: &#x3c4;_0_0.Type, forResource: Swift.String) -&gt; RxSwift.PrimitiveSequence&lt;RxSwift.SingleTrait, Swift.Optional&lt;&#x3c4;_0_0&gt;&gt;"
+                  moduleName = "DemoURL"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/liujinxian/DemoURL/DemoURL/API%20/ApiManager.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "71"
+                  endingLineNumber = "71"
+                  offsetFromSymbolStart = "1312">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>
