@@ -18,7 +18,12 @@ class ViewController: UIViewController {
     private let viewModel = ViewModel()
     private var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
-    private let activityIndicatorView = UIActivityIndicatorView(style: .large)
+    
+    private lazy var activityIndicator: UIActivityIndicatorView = {
+        let activityIndicator = UIActivityIndicatorView(style: .medium)
+        activityIndicator.center = self.view.center
+        return activityIndicator
+    }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -30,33 +35,61 @@ class ViewController: UIViewController {
 extension ViewController {
     private func setView() {
         searchTextfield.rx.text.orEmpty.bind(to: viewModel.searchText).disposed(by: dispose)
+        
+        playerLayer = AVPlayerLayer(player: player)
+        self.view.layer.addSublayer(playerLayer!)
+        
         resultCollectionVew.dataSource = self
         resultCollectionVew.delegate = self
         resultCollectionVew.register(UINib(nibName: "ResultCollectionViewCell", bundle: nil), forCellWithReuseIdentifier: "ResultCollectionViewCell")
     }
     
     private func setViewModel() {
-        viewModel.setSubscribe()
+        
+        searchTextfield.rx.controlEvent([.editingChanged]).asObservable().subscribe ({ [weak self] _ in
+            self?.viewModel.getSearchResult()
+            self?.stopPlayer()
+            self?.viewModel.setPlayerNil()
+        }).disposed(by: dispose)
         
         viewModel.reloadData.subscribe(onNext: { [weak self] in
             self?.resultCollectionVew.reloadData()
         }).disposed(by: dispose)
         
         viewModel.setLoading.subscribe(onNext: { [weak self] in
-            self?.activityIndicatorView.center = self!.view.center
-            self?.view.addSubview(self!.activityIndicatorView)
-            self?.activityIndicatorView.startAnimating()
+            self?.activityIndicator.center = self!.view.center
+            self?.view.addSubview(self!.activityIndicator)
+            self?.activityIndicator.startAnimating()
+            self?.view.isUserInteractionEnabled = false
         }).disposed(by: dispose)
         
         viewModel.stopLoading.subscribe(onNext: { [weak self] in
-            self?.activityIndicatorView.stopAnimating()
+            self?.activityIndicator.stopAnimating()
+            self?.view.isUserInteractionEnabled = true
+        }).disposed(by: dispose)
+        
+        viewModel.presentToVC.subscribe(onNext: { [weak self] vc in
+            self?.present(vc, animated: true)
         }).disposed(by: dispose)
     }
     
     @objc private func playerDidFinishPlaying(_ notification: Notification) {
-        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: player!.currentItem)
-        player = nil
-        print("播放完畢")
+        stopPlayer()
+        viewModel.setPlayerNil()
+    }
+    
+    private func stopPlayer() {
+        guard player != nil else { return }
+        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: self.player!.currentItem)
+        self.player!.pause()
+        self.player!.replaceCurrentItem(with: nil)
+        self.player = nil
+    }
+    
+    private func startPlayer(audioURL: URL) {
+        player = AVPlayer(url: audioURL)
+        NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying(_:)), name: .AVPlayerItemDidPlayToEndTime, object: player!.currentItem)
+        player?.play()
     }
 }
 
@@ -82,28 +115,23 @@ extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDe
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         
-        let (isPlayer, audioURL) = viewModel.setPlayer(row: indexPath.row)
+        let isPlay: Bool = player?.rate == 0 ? false : true
+        
+        let (isPlayer, audioURL) = viewModel.setPlayer(row: indexPath.row, isPlay: isPlay)
                 
         switch isPlayer {
         case .create:
             guard let audioURL = audioURL else { return }
-            player = AVPlayer(url: audioURL)
-            playerLayer = AVPlayerLayer(player: player)
-            view.layer.addSublayer(playerLayer!)
-            NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying(_:)), name: .AVPlayerItemDidPlayToEndTime, object: player!.currentItem)
-            player?.play()
+            self.startPlayer(audioURL: audioURL)
         case .cover:
-            NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: player!.currentItem)
-            player = nil
             guard let audioURL = audioURL else { return }
-            player = AVPlayer(url: audioURL)
-            NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying(_:)), name: .AVPlayerItemDidPlayToEndTime, object: player!.currentItem)
-            player?.play()
+            self.stopPlayer()
+            self.startPlayer(audioURL: audioURL)
         case .stop:
-            if player!.rate == 0 {
-                player!.play()
-            } else {
+            if isPlay {
                 player!.pause()
+            } else {
+                player!.play()
             }
         case .none:
             return
