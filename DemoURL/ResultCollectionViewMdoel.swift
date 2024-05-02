@@ -18,7 +18,6 @@ class ResultCollectionViewMdoel {
     var item: SearchResultResponse.Result?
     
     private var picUrl: String?
-    private var isPlayer: Bool = false
     
     func setViewModel(item: SearchResultResponse.Result) {
         self.item = item
