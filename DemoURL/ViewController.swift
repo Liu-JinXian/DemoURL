@@ -60,12 +60,10 @@ extension ViewController {
             self?.activityIndicator.center = self!.view.center
             self?.view.addSubview(self!.activityIndicator)
             self?.activityIndicator.startAnimating()
-            self?.view.isUserInteractionEnabled = false
         }).disposed(by: dispose)
         
         viewModel.stopLoading.subscribe(onNext: { [weak self] in
             self?.activityIndicator.stopAnimating()
-            self?.view.isUserInteractionEnabled = true
         }).disposed(by: dispose)
         
         viewModel.presentToVC.subscribe(onNext: { [weak self] vc in

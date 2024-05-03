@@ -24,31 +24,40 @@ class ViewModel {
     let searchText = BehaviorRelay<String>(value: "")
     
     private let dispose = DisposeBag()
+    private let cellViewModelLock = NSLock()
     private var isPlayerRow: Int? = nil
     private(set) var cellViewModels: [ResultCollectionViewMdoel] = []
     
     func getSearchResult() {
         
-        self.setPlayerNil()
-        
-        let params: [String: Any] = ["term": searchText.value]
-        let api = ApiManager.shared.mangers(object: SearchResultResponse.self, method: .get, url: searchURL, parameters: params)
-        
-        setLoading.onNext(())
-        
-        api.subscribe(onSuccess: { [weak self] model in
+        DispatchQueue.global().async { [weak self] in
             
-            guard let response = model else {
-                self?.setAlert(title: "沒有資料", error: "請重新搜尋")
-                return
+            self?.setPlayerNil()
+            
+            let params: [String: Any] = ["term": self!.searchText.value]
+            let api = ApiManager.shared.mangers(object: SearchResultResponse.self, method: .get, url: searchURL, parameters: params)
+            
+            DispatchQueue.main.async {
+                self?.setLoading.onNext(())
             }
-            self?.setCellViewModel(model: response)
-            self?.stopLoading.onNext(())
             
-        }, onError: { [weak self] (error) in
-            self?.setAlert(title: "Api錯誤", error: "\(error)")
-            self?.stopLoading.onNext(())
-        }).disposed(by: dispose)
+            api.subscribe(onSuccess: { [weak self] model in
+                DispatchQueue.main.async {
+                    if let response = model {
+                        self?.setCellViewModel(model: response)
+                        self?.stopLoading.onNext(())
+                    }else {
+                        self?.setAlert(title: "沒有資料", error: "請重新搜尋")
+                    }
+                }
+                
+            }, onError: { [weak self] (error) in
+                DispatchQueue.main.async {
+                    self?.setAlert(title: "Api錯誤", error: "\(error)")
+                    self?.stopLoading.onNext(())
+                }
+            }).disposed(by: self!.dispose)
+        }
     }
     
     func setNumberOfItemsInSection() -> Int {
@@ -75,7 +84,7 @@ class ViewModel {
     }
     
     func setPlayer(row: Int, isPlay: Bool) -> (PlayerStatus, URL?) {
-            
+        
         if isPlayerRow == nil {
             self.isPlayerRow = row
             let url = cellViewModels[row].previewUrl.value
@@ -105,6 +114,12 @@ class ViewModel {
 extension ViewModel {
     
     private func setCellViewModel(model: SearchResultResponse) {
+        
+        cellViewModelLock.lock()
+        
+        defer {
+            cellViewModelLock.unlock()
+        }
         
         cellViewModels = []
         
