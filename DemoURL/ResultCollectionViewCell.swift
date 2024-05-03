@@ -17,14 +17,19 @@ class ResultCollectionViewCell: UICollectionViewCell {
     @IBOutlet weak var cardView: UIView!
     @IBOutlet weak var playStaus: UILabel!
     
-    private let dispose = DisposeBag()
+    private var dispose = DisposeBag()
     
     override func awakeFromNib() {
         super.awakeFromNib()
         self.cardView.layoutIfNeeded()
     }
     
-    func setCell(viewModel: ResultCollectionViewMdoel) {
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        dispose = DisposeBag()
+    }
+    
+    func setCell(viewModel: ResultCollectionViewMdoel) {        
         viewModel.trackName.bind(to: trackName.rx.text).disposed(by: dispose)
         viewModel.longDescription.bind(to: longDescription.rx.text).disposed(by: dispose)
         viewModel.time.bind(to: time.rx.text).disposed(by: dispose)

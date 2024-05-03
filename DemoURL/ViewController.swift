@@ -14,7 +14,7 @@ class ViewController: UIViewController {
     @IBOutlet weak var searchTextfield: UITextField!
     @IBOutlet weak var resultCollectionVew: UICollectionView!
     
-    private let dispose = DisposeBag()
+    private var dispose = DisposeBag()
     private let viewModel = ViewModel()
     private var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
@@ -29,6 +29,11 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         setView()
         setViewModel()
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        dispose = DisposeBag()
     }
 }
 
