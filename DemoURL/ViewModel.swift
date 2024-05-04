@@ -10,29 +10,52 @@ import UIKit
 
 class ViewModel {
     
-    enum PlayerStatus {
-        case create
-        case cover
-        case stop
-        case none
-    }
-    
     let reloadData = PublishSubject<()>()
     let setLoading = PublishSubject<()>()
     let stopLoading = PublishSubject<()>()
     let presentToVC = PublishSubject<(UIAlertController)>()
+    let setPlayerMusic = PublishSubject<(URL?)>()
+    let stopPlayer = PublishSubject<()>()
+    let startPlayer = PublishSubject<()>()
+    
     let searchText = BehaviorRelay<String>(value: "")
+    let isPlay = BehaviorRelay<Bool>(value: false)
     
     private let dispose = DisposeBag()
     private let cellViewModelLock = NSLock()
-    private var isPlayerRow: Int? = nil
     private(set) var cellViewModels: [ResultCollectionViewMdoel] = []
+    
+    private var isPlayerRow: Int? = nil {
+        willSet {
+            
+            if newValue == nil && isPlayerRow == nil { return }
+            
+            // 重新搜尋時會為nil，清除播放
+            guard let newValue = newValue else {
+                cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
+                return
+            }
+            
+            if isPlayerRow != newValue && isPlayerRow != nil {
+                cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
+            }
+            
+            if isPlayerRow == newValue {
+                cellViewModels[newValue].setPlayStatus(playStatus: isPlay.value ? .stop : .playing)
+                isPlay.value == true ? stopPlayer.onNext(()) : startPlayer.onNext(())
+                return
+            }
+            
+            cellViewModels[newValue].setPlayStatus(playStatus: .playing)
+            let url = cellViewModels[newValue].previewUrl.value
+            guard let audioURL = URL(string: url) else { return }
+            setPlayerMusic.onNext((audioURL))
+        }
+    }
     
     func getSearchResult() {
         
         DispatchQueue.global().async { [weak self] in
-            
-            self?.setPlayerNil()
             
             let params: [String: Any] = ["term": self!.searchText.value]
             let api = ApiManager.shared.mangers(object: SearchResultResponse.self, method: .get, url: searchURL, parameters: params)
@@ -83,31 +106,8 @@ class ViewModel {
         return CGSize(width: screenWidth, height: hieght)
     }
     
-    func setPlayer(row: Int, isPlay: Bool) -> (PlayerStatus, URL?) {
-        
-        if isPlayerRow == nil {
-            self.isPlayerRow = row
-            let url = cellViewModels[row].previewUrl.value
-            guard let audioURL = URL(string: url) else { return (.none, nil) }
-            cellViewModels[row].setPlayStatus(playStatus: .playing)
-            return (.create, audioURL)
-        }else if isPlayerRow != row {
-            cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
-            let url = cellViewModels[row].previewUrl.value
-            guard let audioURL = URL(string: url) else { return (.none, nil) }
-            cellViewModels[row].setPlayStatus(playStatus: .playing)
-            self.isPlayerRow = row
-            return (.cover, audioURL)
-        }else {
-            cellViewModels[row].setPlayStatus(playStatus: isPlay ? .stop : .playing)
-            return (.stop, nil)
-        }
-    }
-    
-    func setPlayerNil() {
-        if isPlayerRow == nil { return }
-        cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
-        self.isPlayerRow = nil
+    func setPlayer(row: Int?) {
+        self.isPlayerRow = row
     }
 }
 

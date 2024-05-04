@@ -10,12 +10,13 @@ import RxCocoa
 import AVKit
 
 class ViewController: UIViewController {
-
+    
     @IBOutlet weak var searchTextfield: UITextField!
     @IBOutlet weak var resultCollectionVew: UICollectionView!
     
     private var dispose = DisposeBag()
     private let viewModel = ViewModel()
+    private var playObservation: NSKeyValueObservation?
     private var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
     
@@ -33,7 +34,7 @@ class ViewController: UIViewController {
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        dispose = DisposeBag()
+        cleanObserver()
     }
 }
 
@@ -41,8 +42,16 @@ extension ViewController {
     private func setView() {
         searchTextfield.rx.text.orEmpty.bind(to: viewModel.searchText).disposed(by: dispose)
         
+        player = AVPlayer()
         playerLayer = AVPlayerLayer(player: player)
         self.view.layer.addSublayer(playerLayer!)
+        
+        playObservation = player?.observe(\.rate, options: [.new, .old]) { [weak self] player, change in
+            guard let self = self else { return }
+            self.viewModel.isPlay.accept(change.newValue == 1 ? true : false)
+        }
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying(_:)), name: .AVPlayerItemDidPlayToEndTime, object: player?.currentItem)
         
         resultCollectionVew.dataSource = self
         resultCollectionVew.delegate = self
@@ -52,9 +61,9 @@ extension ViewController {
     private func setViewModel() {
         
         searchTextfield.rx.controlEvent([.editingChanged]).asObservable().subscribe ({ [weak self] _ in
+            self?.player?.replaceCurrentItem(with: nil)
+            self?.viewModel.setPlayer(row: nil)
             self?.viewModel.getSearchResult()
-            self?.stopPlayer()
-            self?.viewModel.setPlayerNil()
         }).disposed(by: dispose)
         
         viewModel.reloadData.subscribe(onNext: { [weak self] in
@@ -74,25 +83,36 @@ extension ViewController {
         viewModel.presentToVC.subscribe(onNext: { [weak self] vc in
             self?.present(vc, animated: true)
         }).disposed(by: dispose)
+        
+        viewModel.setPlayerMusic.subscribe(onNext: { [weak self] url in
+            self?.startPlayer(audioURL: url!)
+        }).disposed(by: dispose)
+        
+        viewModel.stopPlayer.subscribe(onNext: { [weak self]  in
+            self?.player?.pause()
+        }).disposed(by: dispose)
+        
+        viewModel.startPlayer.subscribe(onNext: { [weak self]  in
+            self?.player?.play()
+        }).disposed(by: dispose)
     }
     
     @objc private func playerDidFinishPlaying(_ notification: Notification) {
-        stopPlayer()
-        viewModel.setPlayerNil()
-    }
-    
-    private func stopPlayer() {
-        guard player != nil else { return }
-        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: self.player!.currentItem)
-        self.player!.pause()
-        self.player!.replaceCurrentItem(with: nil)
-        self.player = nil
+        viewModel.setPlayer(row: nil)
     }
     
     private func startPlayer(audioURL: URL) {
-        player = AVPlayer(url: audioURL)
-        NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying(_:)), name: .AVPlayerItemDidPlayToEndTime, object: player!.currentItem)
+        let newPlayerItem = AVPlayerItem(url: audioURL)
+        player?.replaceCurrentItem(with: newPlayerItem)
         player?.play()
+    }
+    
+    private func cleanObserver() {
+        dispose = DisposeBag()
+        player = nil
+        playObservation?.invalidate()
+        playObservation = nil
+        NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: self.player!.currentItem)
     }
 }
 
@@ -110,34 +130,14 @@ extension ViewController: UICollectionViewDataSource {
 }
 
 extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDelegate {
-
+    
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-
+        
         return viewModel.setSizeForItemAt(row: indexPath.row)
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         
-        let isPlay: Bool = player?.rate == 0 ? false : true
-        
-        let (isPlayer, audioURL) = viewModel.setPlayer(row: indexPath.row, isPlay: isPlay)
-                
-        switch isPlayer {
-        case .create:
-            guard let audioURL = audioURL else { return }
-            self.startPlayer(audioURL: audioURL)
-        case .cover:
-            guard let audioURL = audioURL else { return }
-            self.stopPlayer()
-            self.startPlayer(audioURL: audioURL)
-        case .stop:
-            if isPlay {
-                player!.pause()
-            } else {
-                player!.play()
-            }
-        case .none:
-            return
-        }
+        viewModel.setPlayer(row: indexPath.row)
     }
 }
