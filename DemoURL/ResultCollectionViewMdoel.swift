@@ -15,12 +15,10 @@ class ResultCollectionViewMdoel {
     let time = BehaviorRelay<String>(value: "")
     let previewUrl = BehaviorRelay<String>(value: "")
     let playStaus = BehaviorRelay<String>(value: "")
-    var item: SearchResultResponse.Result?
-    
+        
     private var picUrl: String?
     
-    func setViewModel(item: SearchResultResponse.Result) {
-        self.item = item
+    init(item: SearchResultResponse.Result) {
         self.trackName.accept(item.trackName ?? "")
         self.longDescription.accept(item.longDescription ?? "")
         self.previewUrl.accept(item.previewUrl ?? "")
@@ -32,7 +30,7 @@ class ResultCollectionViewMdoel {
         
         self.picUrl = item.artworkUrl100
     }
-    
+        
     func downImage(completion: @escaping (UIImage?)->()) {
         
         guard let url = self.picUrl else { return }

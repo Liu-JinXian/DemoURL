@@ -8,9 +8,19 @@ import RxSwift
 import RxCocoa
 import UIKit
 
-class ViewModel {
+protocol ViewModelType {
     
-    let reloadData = PublishSubject<()>()
+    associatedtype Input
+    associatedtype Output
+    
+    var input: Input { get }
+    var output: Output { get }
+    
+    func transform(input: Input) -> Output
+}
+
+class ViewModel: ViewModelType {
+    
     let setLoading = PublishSubject<()>()
     let stopLoading = PublishSubject<()>()
     let presentToVC = PublishSubject<(UIAlertController)>()
@@ -18,20 +28,65 @@ class ViewModel {
     let stopPlayer = PublishSubject<()>()
     let startPlayer = PublishSubject<()>()
     
-    let searchText = BehaviorRelay<String>(value: "")
     let isPlay = BehaviorRelay<Bool>(value: false)
+    let cellViewModelsRelay = BehaviorRelay<[ResultCollectionViewMdoel]>(value: [])
     
     private let dispose = DisposeBag()
-    private let cellViewModelLock = NSLock()
-    private(set) var cellViewModels: [ResultCollectionViewMdoel] = []
+    
+    var input: Input
+    var output: Output
+    
+    struct Input {
+        let searchText: Observable<String>
+        let validate: Observable<Void>
+    }
+    
+    struct Output {
+        let cellViewModels: BehaviorRelay<[ResultCollectionViewMdoel]>
+        let cellSizes: Driver<[CGSize]>
+    }
+    
+    init() {
+         input = Input(searchText: Observable.just(""), validate: Observable.just(()))
+        output = Output(cellViewModels: cellViewModelsRelay, cellSizes: Driver.just([]))
+     }
+    
+    func transform(input: Input) -> Output {
+        
+        let resultList = input.validate
+            .withLatestFrom(input.searchText).flatMapLatest { [weak self] text -> Observable<[SearchResultResponse.Result]> in
+                guard let self = self else { return Observable.just([])}
+                return self.getSearchResult(searchword: text)
+            }.asDriver(onErrorJustReturn: [])
+        
+        
+        
+        let cellViewModels = resultList.map { result in
+            return result.map { test in ResultCollectionViewMdoel(item: test)}
+        }.do(onNext: { [weak self] models in
+            self?.cellViewModelsRelay.accept(models)
+        })
+        
+            .asDriver(onErrorJustReturn: [])
+        
+        let cellSizes = cellViewModels.map { models in
+            models.map { model in
+                return self.setSizeForItemAt(cellViewModel: model)
+            }
+        }
+        
+        return Output(cellViewModels: cellViewModelsRelay, cellSizes: cellSizes)
+    }
     
     private var isPlayerRow: Int? = nil {
         willSet {
-            
+            let cellViewModels = output.cellViewModels.value
+            if cellViewModels.count == 0 { return }
             if newValue == nil && isPlayerRow == nil { return }
             
             // 重新搜尋時會為nil，清除播放
             guard let newValue = newValue else {
+                
                 cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
                 return
             }
@@ -53,83 +108,40 @@ class ViewModel {
         }
     }
     
-    func getSearchResult() {
-        
-        DispatchQueue.global().async { [weak self] in
-            
-            let params: [String: Any] = ["term": self!.searchText.value]
-            let api = ApiManager.shared.mangers(object: SearchResultResponse.self, method: .get, url: searchURL, parameters: params)
-            
-            DispatchQueue.main.async {
-                self?.setLoading.onNext(())
-            }
-            
-            api.subscribe(onSuccess: { [weak self] model in
-                DispatchQueue.main.async {
-                    if let response = model {
-                        self?.setCellViewModel(model: response)
-                        self?.stopLoading.onNext(())
-                    }else {
-                        self?.setAlert(title: "沒有資料", error: "請重新搜尋")
-                    }
-                }
-                
-            }, onError: { [weak self] (error) in
-                DispatchQueue.main.async {
-                    self?.setAlert(title: "Api錯誤", error: "\(error)")
-                    self?.stopLoading.onNext(())
-                }
-            }).disposed(by: self!.dispose)
-        }
-    }
-    
-    func setNumberOfItemsInSection() -> Int {
-        return cellViewModels.count
-    }
-    
-    func setSizeForItemAt(row: Int) -> CGSize {
-        
-        let screenWidth = UIScreen.main.bounds.width
-        let screenHeight = UIScreen.main.bounds.height
-        
-        let textFont = UIFont.init(name: "PingFang-TC-Regular", size: 15)!
-        let textMaxSize = CGSize(width: screenWidth - 32, height: screenHeight)
-        
-        let trackNameString = cellViewModels[row].trackName.value
-        let trackNameLabelSize = self.textSize(text: trackNameString, font: textFont, maxSize: textMaxSize)
-        
-        let longDescriptionString = cellViewModels[row].longDescription.value
-        let longDescriptionLabelSize = self.textSize(text: longDescriptionString, font: textFont, maxSize: textMaxSize)
-        
-        let hieght = trackNameLabelSize.height + longDescriptionLabelSize.height + 48
-        
-        return CGSize(width: screenWidth, height: hieght)
-    }
-    
     func setPlayer(row: Int?) {
         self.isPlayerRow = row
     }
 }
 
 extension ViewModel {
-    
-    private func setCellViewModel(model: SearchResultResponse) {
+    private func getSearchResult(searchword: String) -> Observable<[SearchResultResponse.Result]> {
         
-        cellViewModelLock.lock()
-        
-        defer {
-            cellViewModelLock.unlock()
+        return Observable.create { observer in
+            
+            let params: [String: Any] = ["term": searchword]
+            let api = ApiManager.shared.mangers(object: SearchResultResponse.self, method: .get, url: searchURL, parameters: params)
+            
+            self.setLoading.onNext(())
+            
+            api.subscribe(onSuccess: { [weak self] model in
+                self?.stopLoading.onNext(())
+                observer.onNext(model?.results ?? [])
+                observer.onCompleted()
+            },onError: { [weak self] (error) in
+                self?.setAlert(title: "Api錯誤", error: "\(error)")
+                self?.stopLoading.onNext(())
+                observer.onError(error)
+            }).disposed(by: self.dispose)
+            
+            return Disposables.create()
         }
-        
-        cellViewModels = []
-        
-        model.results?.forEach { item in
-            let viewModel = ResultCollectionViewMdoel()
-            viewModel.setViewModel(item: item)
-            cellViewModels.append(viewModel)
-        }
-        
-        self.reloadData.onNext(())
+    }
+
+    private func setAlert(title: String, error: String) {
+        let alertSever: UIAlertController = UIAlertController(title: title, message: error, preferredStyle: .alert)
+        let action = UIAlertAction(title: "確定", style: UIAlertAction.Style.default, handler: nil)
+        alertSever.addAction(action)
+        self.presentToVC.onNext((alertSever))
     }
     
     private func textSize(text: String, font: UIFont, maxSize: CGSize) -> CGSize {
@@ -137,10 +149,22 @@ extension ViewModel {
         return text.boundingRect(with: maxSize, options: [.usesLineFragmentOrigin], attributes: [NSAttributedString.Key.font : font], context: nil).size
     }
     
-    private func setAlert(title: String, error: String) {
-        let alertSever: UIAlertController = UIAlertController(title: title, message: error, preferredStyle: .alert)
-        let action = UIAlertAction(title: "確定", style: UIAlertAction.Style.default, handler: nil)
-        alertSever.addAction(action)
-        self.presentToVC.onNext((alertSever))
+    private func setSizeForItemAt(cellViewModel: ResultCollectionViewMdoel) -> CGSize {
+        
+        let screenWidth = UIScreen.main.bounds.width
+        let screenHeight = UIScreen.main.bounds.height
+        
+        let textFont = UIFont.init(name: "PingFang-TC-Regular", size: 15)!
+        let textMaxSize = CGSize(width: screenWidth - 32, height: screenHeight)
+        
+        let trackNameString = cellViewModel.trackName.value
+        let trackNameLabelSize = self.textSize(text: trackNameString, font: textFont, maxSize: textMaxSize)
+        
+        let longDescriptionString = cellViewModel.longDescription.value
+        let longDescriptionLabelSize = self.textSize(text: longDescriptionString, font: textFont, maxSize: textMaxSize)
+        
+        let hieght = trackNameLabelSize.height + longDescriptionLabelSize.height + 48
+        
+        return CGSize(width: screenWidth, height: hieght)
     }
 }

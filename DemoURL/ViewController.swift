@@ -12,13 +12,18 @@ import AVKit
 class ViewController: UIViewController {
     
     @IBOutlet weak var searchTextfield: UITextField!
+    @IBOutlet weak var searchButton: UIButton!
+    
     @IBOutlet weak var resultCollectionVew: UICollectionView!
     
     private var dispose = DisposeBag()
-    private let viewModel = ViewModel()
+    
     private var playObservation: NSKeyValueObservation?
     private var player: AVPlayer?
     private var playerLayer: AVPlayerLayer?
+    
+    private let viewModel = ViewModel()
+    private var itemSizes: [CGSize] = []
     
     private lazy var activityIndicator: UIActivityIndicatorView = {
         let activityIndicator = UIActivityIndicatorView(style: .medium)
@@ -39,9 +44,8 @@ class ViewController: UIViewController {
 }
 
 extension ViewController {
+    
     private func setView() {
-        searchTextfield.rx.text.orEmpty.bind(to: viewModel.searchText).disposed(by: dispose)
-        
         player = AVPlayer()
         playerLayer = AVPlayerLayer(player: player)
         self.view.layer.addSublayer(playerLayer!)
@@ -52,23 +56,10 @@ extension ViewController {
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying(_:)), name: .AVPlayerItemDidPlayToEndTime, object: player?.currentItem)
-        
-        resultCollectionVew.dataSource = self
-        resultCollectionVew.delegate = self
         resultCollectionVew.register(UINib(nibName: "ResultCollectionViewCell", bundle: nil), forCellWithReuseIdentifier: "ResultCollectionViewCell")
     }
     
     private func setViewModel() {
-        
-        searchTextfield.rx.controlEvent([.editingChanged]).asObservable().subscribe ({ [weak self] _ in
-            self?.player?.replaceCurrentItem(with: nil)
-            self?.viewModel.setPlayer(row: nil)
-            self?.viewModel.getSearchResult()
-        }).disposed(by: dispose)
-        
-        viewModel.reloadData.subscribe(onNext: { [weak self] in
-            self?.resultCollectionVew.reloadData()
-        }).disposed(by: dispose)
         
         viewModel.setLoading.subscribe(onNext: { [weak self] in
             self?.activityIndicator.center = self!.view.center
@@ -95,6 +86,27 @@ extension ViewController {
         viewModel.startPlayer.subscribe(onNext: { [weak self]  in
             self?.player?.play()
         }).disposed(by: dispose)
+        
+        let inputs = ViewModel.Input(searchText: searchTextfield.rx.text.orEmpty.distinctUntilChanged().asObservable(),
+                                          validate: searchButton.rx.tap.asObservable())
+        
+        let output = viewModel.transform(input: inputs)
+        output.cellViewModels.asDriver().drive(resultCollectionVew.rx.items(cellIdentifier: "ResultCollectionViewCell", cellType: ResultCollectionViewCell.self)) {  _, model, cell in
+            cell.bind(to: model)
+        }.disposed(by: dispose)
+        
+        output.cellSizes.drive(onNext: { [weak self] sizes in
+            guard let self = self else { return }
+            self.itemSizes = sizes
+            self.resultCollectionVew.collectionViewLayout.invalidateLayout()
+        }).disposed(by: dispose)
+        
+        resultCollectionVew.rx.itemSelected.map({ $0.item }).subscribe(onNext: { [weak self] row in
+            guard let self = self else { return }
+            self.viewModel.setPlayer(row: row)
+        }).disposed(by: dispose)
+        
+        resultCollectionVew.rx.setDelegate(self).disposed(by: dispose)
     }
     
     @objc private func playerDidFinishPlaying(_ notification: Notification) {
@@ -116,28 +128,10 @@ extension ViewController {
     }
 }
 
-extension ViewController: UICollectionViewDataSource {
-    
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return viewModel.setNumberOfItemsInSection()
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ResultCollectionViewCell", for: indexPath) as! ResultCollectionViewCell
-        cell.setCell(viewModel: viewModel.cellViewModels[indexPath.row])
-        return cell
-    }
-}
-
-extension ViewController: UICollectionViewDelegateFlowLayout, UICollectionViewDelegate {
+extension ViewController: UICollectionViewDelegateFlowLayout {
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         
-        return viewModel.setSizeForItemAt(row: indexPath.row)
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        
-        viewModel.setPlayer(row: indexPath.row)
+        itemSizes[indexPath.row]
     }
 }

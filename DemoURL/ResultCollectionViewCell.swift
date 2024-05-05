@@ -29,7 +29,7 @@ class ResultCollectionViewCell: UICollectionViewCell {
         dispose = DisposeBag()
     }
     
-    func setCell(viewModel: ResultCollectionViewMdoel) {        
+    func bind(to viewModel: ResultCollectionViewMdoel) {
         viewModel.trackName.bind(to: trackName.rx.text).disposed(by: dispose)
         viewModel.longDescription.bind(to: longDescription.rx.text).disposed(by: dispose)
         viewModel.time.bind(to: time.rx.text).disposed(by: dispose)

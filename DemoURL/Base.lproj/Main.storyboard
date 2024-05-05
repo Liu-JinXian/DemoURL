@@ -84,6 +84,7 @@
                     </view>
                     <connections>
                         <outlet property="resultCollectionVew" destination="LHC-JT-p43" id="4E4-O7-tBS"/>
+                        <outlet property="searchButton" destination="vtq-PD-bZe" id="fag-rJ-9vB"/>
                         <outlet property="searchTextfield" destination="ETC-Xb-nwX" id="jcf-Y9-KiD"/>
                     </connections>
                 </viewController>
