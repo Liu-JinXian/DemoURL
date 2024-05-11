@@ -19,11 +19,6 @@ class ResultCollectionViewCell: UICollectionViewCell {
     
     private var dispose = DisposeBag()
     
-    override func awakeFromNib() {
-        super.awakeFromNib()
-        self.cardView.layoutIfNeeded()
-    }
-    
     override func prepareForReuse() {
         super.prepareForReuse()
         dispose = DisposeBag()
@@ -37,5 +32,6 @@ class ResultCollectionViewCell: UICollectionViewCell {
         viewModel.downImage { [weak self] image in
             self?.imageView.image = image
         }
+        self.cardView.layoutIfNeeded()
     }
 }

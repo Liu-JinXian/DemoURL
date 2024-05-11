@@ -34,7 +34,7 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setView()
-        setViewModel()
+        bindViewModel()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -50,16 +50,16 @@ extension ViewController {
         playerLayer = AVPlayerLayer(player: player)
         self.view.layer.addSublayer(playerLayer!)
         
-        playObservation = player?.observe(\.rate, options: [.new, .old]) { [weak self] player, change in
+        playObservation = player?.observe(\.timeControlStatus, options: [.new]) { [weak self] player, change in
             guard let self = self else { return }
-            self.viewModel.isPlay.accept(change.newValue == 1 ? true : false)
+            self.viewModel.playerStatus.accept(player.timeControlStatus)
         }
         
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinishPlaying(_:)), name: .AVPlayerItemDidPlayToEndTime, object: player?.currentItem)
         resultCollectionVew.register(UINib(nibName: "ResultCollectionViewCell", bundle: nil), forCellWithReuseIdentifier: "ResultCollectionViewCell")
     }
     
-    private func setViewModel() {
+    private func bindViewModel() {
         
         viewModel.setLoading.subscribe(onNext: { [weak self] in
             self?.activityIndicator.center = self!.view.center
@@ -75,22 +75,12 @@ extension ViewController {
             self?.present(vc, animated: true)
         }).disposed(by: dispose)
         
-        viewModel.setPlayerMusic.subscribe(onNext: { [weak self] url in
-            self?.startPlayer(audioURL: url!)
-        }).disposed(by: dispose)
-        
-        viewModel.stopPlayer.subscribe(onNext: { [weak self]  in
-            self?.player?.pause()
-        }).disposed(by: dispose)
-        
-        viewModel.startPlayer.subscribe(onNext: { [weak self]  in
-            self?.player?.play()
-        }).disposed(by: dispose)
-        
         let inputs = ViewModel.Input(searchText: searchTextfield.rx.text.orEmpty.distinctUntilChanged().asObservable(),
-                                          validate: searchButton.rx.tap.asObservable())
+                                     validate: searchButton.rx.tap.asObservable(),
+                                     cellIsSelected: resultCollectionVew.rx.itemSelected.asObservable())
         
         let output = viewModel.transform(input: inputs)
+        
         output.cellViewModels.asDriver().drive(resultCollectionVew.rx.items(cellIdentifier: "ResultCollectionViewCell", cellType: ResultCollectionViewCell.self)) {  _, model, cell in
             cell.bind(to: model)
         }.disposed(by: dispose)
@@ -101,16 +91,26 @@ extension ViewController {
             self.resultCollectionVew.collectionViewLayout.invalidateLayout()
         }).disposed(by: dispose)
         
-        resultCollectionVew.rx.itemSelected.map({ $0.item }).subscribe(onNext: { [weak self] row in
+        output.setPlayer.drive(onNext: { [weak self] status, url in
             guard let self = self else { return }
-            self.viewModel.setPlayer(row: row)
+            switch status {
+            case .none:
+                return
+            case .play:
+                self.player?.play()
+            case .stop:
+                self.player?.pause()
+            case .setUrl:
+                self.startPlayer(audioURL: url!)
+            }
         }).disposed(by: dispose)
         
         resultCollectionVew.rx.setDelegate(self).disposed(by: dispose)
     }
     
     @objc private func playerDidFinishPlaying(_ notification: Notification) {
-        viewModel.setPlayer(row: nil)
+        viewModel.finishPlayer()
+        player?.replaceCurrentItem(with: nil)
     }
     
     private func startPlayer(audioURL: URL) {

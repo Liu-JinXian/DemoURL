@@ -7,6 +7,7 @@
 import RxSwift
 import RxCocoa
 import UIKit
+import AVKit
 
 protocol ViewModelType {
     
@@ -19,18 +20,23 @@ protocol ViewModelType {
     func transform(input: Input) -> Output
 }
 
+public enum AvplayerChangeStatus {
+    case play
+    case stop
+    case setUrl
+    case none
+}
+
 class ViewModel: ViewModelType {
     
     let setLoading = PublishSubject<()>()
     let stopLoading = PublishSubject<()>()
     let presentToVC = PublishSubject<(UIAlertController)>()
-    let setPlayerMusic = PublishSubject<(URL?)>()
-    let stopPlayer = PublishSubject<()>()
-    let startPlayer = PublishSubject<()>()
     
-    let isPlay = BehaviorRelay<Bool>(value: false)
     let cellViewModelsRelay = BehaviorRelay<[ResultCollectionViewMdoel]>(value: [])
+    let playerStatus = BehaviorRelay<AVPlayer.TimeControlStatus>(value: .paused)
     
+    private var isPlayerRow: Int? = nil
     private let dispose = DisposeBag()
     
     var input: Input
@@ -39,17 +45,19 @@ class ViewModel: ViewModelType {
     struct Input {
         let searchText: Observable<String>
         let validate: Observable<Void>
+        let cellIsSelected: Observable<IndexPath>
     }
     
     struct Output {
         let cellViewModels: BehaviorRelay<[ResultCollectionViewMdoel]>
         let cellSizes: Driver<[CGSize]>
+        let setPlayer: Driver<(AvplayerChangeStatus, URL?)>
     }
     
     init() {
-         input = Input(searchText: Observable.just(""), validate: Observable.just(()))
-        output = Output(cellViewModels: cellViewModelsRelay, cellSizes: Driver.just([]))
-     }
+        input = Input(searchText: Observable.just(""), validate: Observable.just(()), cellIsSelected: Observable.just(IndexPath(item: 0, section: 0)))
+        output = Output(cellViewModels: cellViewModelsRelay, cellSizes: Driver.just([]), setPlayer: Driver.just((.none, nil)))
+    }
     
     func transform(input: Input) -> Output {
         
@@ -59,15 +67,11 @@ class ViewModel: ViewModelType {
                 return self.getSearchResult(searchword: text)
             }.asDriver(onErrorJustReturn: [])
         
-        
-        
         let cellViewModels = resultList.map { result in
             return result.map { test in ResultCollectionViewMdoel(item: test)}
         }.do(onNext: { [weak self] models in
             self?.cellViewModelsRelay.accept(models)
-        })
-        
-            .asDriver(onErrorJustReturn: [])
+        }).asDriver(onErrorJustReturn: [])
         
         let cellSizes = cellViewModels.map { models in
             models.map { model in
@@ -75,41 +79,61 @@ class ViewModel: ViewModelType {
             }
         }
         
-        return Output(cellViewModels: cellViewModelsRelay, cellSizes: cellSizes)
-    }
-    
-    private var isPlayerRow: Int? = nil {
-        willSet {
-            let cellViewModels = output.cellViewModels.value
-            if cellViewModels.count == 0 { return }
-            if newValue == nil && isPlayerRow == nil { return }
-            
-            // 重新搜尋時會為nil，清除播放
-            guard let newValue = newValue else {
+        let setPlayer = input.cellIsSelected
+            .withLatestFrom(cellViewModels) { indexPath, models in
+                return (indexPath, models)
+            }
+            .flatMapLatest { indexPath, models -> Driver<(AvplayerChangeStatus,URL?)> in
                 
-                cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
-                return
-            }
-            
-            if isPlayerRow != newValue && isPlayerRow != nil {
-                cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
-            }
-            
-            if isPlayerRow == newValue {
-                cellViewModels[newValue].setPlayStatus(playStatus: isPlay.value ? .stop : .playing)
-                isPlay.value == true ? stopPlayer.onNext(()) : startPlayer.onNext(())
-                return
-            }
-            
-            cellViewModels[newValue].setPlayStatus(playStatus: .playing)
-            let url = cellViewModels[newValue].previewUrl.value
-            guard let audioURL = URL(string: url) else { return }
-            setPlayerMusic.onNext((audioURL))
-        }
+                let (status, url) = self.chagePlayer(selectRow: indexPath.row)
+                return Driver.just((status, url))
+            }.asDriver(onErrorJustReturn: (.none, nil))
+    
+        return Output(cellViewModels: cellViewModelsRelay, cellSizes: cellSizes, setPlayer: setPlayer)
     }
     
-    func setPlayer(row: Int?) {
-        self.isPlayerRow = row
+    func chagePlayer(selectRow: Int?) -> (AvplayerChangeStatus, URL?) {
+        let cellViewModels = output.cellViewModels.value
+        
+        if cellViewModels.count == 0 {
+            self.isPlayerRow = selectRow
+            return (.none, nil)
+        }
+        
+        if selectRow == nil && isPlayerRow == nil {
+            self.isPlayerRow = selectRow
+            return (.none, nil)
+        }
+        
+        guard let newValue = selectRow else {
+            cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
+            self.isPlayerRow = selectRow
+            return (.none, nil)
+        }
+        
+        if isPlayerRow != newValue && isPlayerRow != nil {
+            cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
+        }
+        
+        if isPlayerRow == newValue {
+            cellViewModels[newValue].setPlayStatus(playStatus: playerStatus.value == .playing ? .stop : .playing)
+            self.isPlayerRow = selectRow
+            return (playerStatus.value == .playing ? .stop : .play, nil)
+        }
+        
+        cellViewModels[newValue].setPlayStatus(playStatus: .playing)
+        let url = cellViewModels[newValue].previewUrl.value
+        guard let audioURL = URL(string: url) else { return (.none, nil) }
+        self.isPlayerRow = selectRow
+        return (.setUrl, audioURL)
+    }
+    
+    func finishPlayer() {
+        let cellViewModels = output.cellViewModels.value
+        if cellViewModels.count == 0 || isPlayerRow == nil { return }
+        
+        cellViewModels[isPlayerRow!].setPlayStatus(playStatus: .noplay)
+        self.isPlayerRow = nil
     }
 }
 
@@ -136,7 +160,7 @@ extension ViewModel {
             return Disposables.create()
         }
     }
-
+    
     private func setAlert(title: String, error: String) {
         let alertSever: UIAlertController = UIAlertController(title: title, message: error, preferredStyle: .alert)
         let action = UIAlertAction(title: "確定", style: UIAlertAction.Style.default, handler: nil)
@@ -165,6 +189,6 @@ extension ViewModel {
         
         let hieght = trackNameLabelSize.height + longDescriptionLabelSize.height + 48
         
-        return CGSize(width: screenWidth, height: hieght)
+        return CGSize(width: screenWidth, height: hieght < 220 ? 220 : hieght)
     }
 }
